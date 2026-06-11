@@ -1,17 +1,11 @@
 services:
   - type: web
     name: resume-agent-api
-    runtime: python
+    runtime: docker
     plan: free
     rootDir: backend
-    aptPackages:
-      - tesseract-ocr
-      - poppler-utils
-    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 2
+    dockerfilePath: ./Dockerfile
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.10
       - key: DATABASE_URL
         fromDatabase:
           name: resume-agent-db
