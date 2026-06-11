@@ -24,6 +24,7 @@ class Settings(BaseSettings):
 
     max_upload_mb: int = 10
     cors_origins: str = "http://localhost:5173"
+    cors_origin_regex: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
 
