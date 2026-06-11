@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     smtp_pass: str = ""
     smtp_from: str = ""
 
+    resend_api_key: str = ""
+    resend_from: str = ""
+
     max_upload_mb: int = 10
     cors_origins: str = "http://localhost:5173"
 

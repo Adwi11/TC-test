@@ -20,16 +20,10 @@ services:
         value: gpt-oss:120b-cloud
       - key: VISION_MODEL
         value: qwen3-vl:235b-cloud
-      - key: SMTP_HOST
-        value: smtp.gmail.com
-      - key: SMTP_PORT
-        value: 587
-      - key: SMTP_USER
+      - key: RESEND_API_KEY
         sync: false
-      - key: SMTP_PASS
-        sync: false
-      - key: SMTP_FROM
-        sync: false
+      - key: RESEND_FROM
+        value: onboarding@resend.dev
       - key: MAX_UPLOAD_MB
         value: 10
       - key: CORS_ORIGINS
