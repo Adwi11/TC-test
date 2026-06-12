@@ -39,7 +39,6 @@ async def verify_email(email: str) -> VerifyResult:
     except Exception:
         return VerifyResult(deliverable=True, reason="verify api: bad json", fail_open=True)
 
-    valid = bool(data.get("valid"))
     mx = bool(data.get("mx"))
     disposable = bool(data.get("disposable"))
     api_reason = (data.get("reason") or "").strip() or "n/a"
@@ -48,6 +47,4 @@ async def verify_email(email: str) -> VerifyResult:
         return VerifyResult(deliverable=False, reason=f"no mx records ({api_reason})", mx=mx, disposable=disposable)
     if disposable:
         return VerifyResult(deliverable=False, reason=f"disposable domain ({api_reason})", mx=mx, disposable=disposable)
-    if not valid:
-        return VerifyResult(deliverable=False, reason=f"verify api invalid ({api_reason})", mx=mx, disposable=disposable)
-    return VerifyResult(deliverable=True, reason=api_reason or "valid", mx=mx, disposable=disposable)
+    return VerifyResult(deliverable=True, reason=api_reason or "mx ok", mx=mx, disposable=disposable)

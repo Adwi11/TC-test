@@ -13,13 +13,13 @@ def test_email_high_confidence_when_regex_passes():
     assert out["field_confidence"]["email"]["validated"] is True
 
 
-def test_email_regex_runs_on_ocr_route_too():
+def test_email_regex_runs_on_vision_route_too():
     """Email regex validation applies regardless of which extraction lane ran."""
     out = score_fields({
         "name": None, "email": "good@example.com", "phone": None, "company": None,
         "designation": None, "skills": [],
         "confidence": {"email": 0.8},
-    }, route="ocr")
+    }, route="vision")
     assert out["field_confidence"]["email"]["source"] == "regex"
     assert out["field_confidence"]["email"]["validated"] is True
 
@@ -59,12 +59,12 @@ def test_phone_normalisation_strips_country_code():
 
 
 def test_route_source_propagates_for_non_email():
-    """When the route is ocr/vision, non-email fields record that route as their source."""
+    """When the route is vision, non-email fields record that route as their source."""
     out = score_fields({
         "name": "A", "email": "a@b.io", "phone": "9876543210", "company": "C",
         "designation": "D", "skills": ["x", "y", "z"],
         "confidence": {"name": 0.7, "email": 0.7, "phone": 0.7, "company": 0.7, "designation": 0.7, "skills": 0.7},
-    }, route="ocr")
-    assert out["field_confidence"]["name"]["source"] == "ocr"
-    assert out["field_confidence"]["skills"]["source"] == "ocr"
+    }, route="vision")
+    assert out["field_confidence"]["name"]["source"] == "vision"
+    assert out["field_confidence"]["skills"]["source"] == "vision"
     assert out["field_confidence"]["email"]["source"] == "regex"

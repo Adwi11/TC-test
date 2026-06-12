@@ -37,7 +37,7 @@ def score_fields(raw: dict[str, Any], *, route: str) -> dict[str, Any]:
 
     phone = _normalize_phone(phone_in) if phone_in else None
     self_conf = raw.get("confidence") or {}
-    route_src = "ocr" if route == "ocr" else ("vision" if route == "vision" else "llm")
+    route_src = "vision" if route == "vision" else "llm"
 
     def passthrough(key: str, value) -> dict:
         """Confidence record using only the LLM's self-reported score."""

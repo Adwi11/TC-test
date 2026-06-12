@@ -20,25 +20,31 @@ def _mask_email(addr: str) -> str:
     return f"{local[:2]}***@{domain}"
 
 
-async def _send_via_resend(to: str, subject: str, body: str) -> tuple[bool, str | None]:
-    """Send a plain-text email via Resend's HTTPS API; returns (ok, error)."""
+async def _send_via_brevo(to: str, subject: str, body: str) -> tuple[bool, str | None]:
+    """Send a plain-text email via Brevo's HTTPS API; returns (ok, error)."""
     s = get_settings()
+    if not s.brevo_from_email:
+        return False, "BREVO_FROM_EMAIL not set"
     payload = {
-        "from": s.resend_from or s.smtp_from or "onboarding@resend.dev",
-        "to": [to],
+        "sender": {"email": s.brevo_from_email, "name": s.brevo_from_name or "HR Team"},
+        "to": [{"email": to}],
         "subject": subject,
-        "text": body,
+        "textContent": body,
     }
-    headers = {"Authorization": f"Bearer {s.resend_api_key}", "Content-Type": "application/json"}
+    headers = {
+        "api-key": s.brevo_api_key,
+        "accept": "application/json",
+        "content-type": "application/json",
+    }
     try:
         async with httpx.AsyncClient(timeout=30) as cli:
-            r = await cli.post("https://api.resend.com/emails", json=payload, headers=headers)
-        if r.status_code >= 400:
-            return False, f"resend {r.status_code}: {r.text[:200]}"
-        log.info("email sent (resend) to=%s subject=%r", _mask_email(to), subject)
-        return True, None
+            r = await cli.post("https://api.brevo.com/v3/smtp/email", json=payload, headers=headers)
     except Exception as e:
         return False, f"{type(e).__name__}: {str(e)[:200]}"
+    if r.status_code >= 400:
+        return False, f"brevo {r.status_code}: {r.text[:200]}"
+    log.info("email sent (brevo) to=%s subject=%r", _mask_email(to), subject)
+    return True, None
 
 
 async def _send_via_smtp(to: str, subject: str, body: str) -> tuple[bool, str | None]:
@@ -69,13 +75,12 @@ async def _send_via_smtp(to: str, subject: str, body: str) -> tuple[bool, str | 
 
 
 async def send_email(to: str, subject: str, body: str) -> tuple[bool, str | None]:
-    """Send via Resend HTTPS when configured (works on Render), otherwise Gmail SMTP."""
+    """Send via Brevo HTTPS when configured (works on Render), otherwise Gmail SMTP."""
     s = get_settings()
-    if s.resend_api_key:
-        ok, err = await _send_via_resend(to, subject, body)
-        if ok:
-            return ok, err
-        log.warning("email send failed (resend) to=%s err=%s", _mask_email(to), err)
+    if s.brevo_api_key:
+        ok, err = await _send_via_brevo(to, subject, body)
+        if not ok:
+            log.warning("email send failed (brevo) to=%s err=%s", _mask_email(to), err)
         return ok, err
     ok, err = await _send_via_smtp(to, subject, body)
     if not ok:

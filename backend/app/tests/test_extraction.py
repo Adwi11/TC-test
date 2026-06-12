@@ -7,10 +7,10 @@ def test_route_text_when_chars_dense_and_no_images():
     assert route_decision(stats) == "text"
 
 
-def test_route_ocr_when_chars_sparse():
-    """Scanned-style PDFs with sparse text should route to the OCR lane."""
+def test_route_vision_when_chars_sparse():
+    """Scanned-style PDFs (sparse text) should now route to the vision lane directly."""
     stats = ExtractionStats(text="", pages=2, chars_per_page=10.0, image_area_ratio=0.0)
-    assert route_decision(stats) == "ocr"
+    assert route_decision(stats) == "vision"
 
 
 def test_route_vision_when_image_area_huge():

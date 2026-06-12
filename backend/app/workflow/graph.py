@@ -7,7 +7,6 @@ from langgraph.graph import StateGraph, END
 from app.services.extraction import (
     extract_pdf, extract_docx, route_decision, ExtractionStats,
 )
-from app.services.ocr import ocr_pdf
 from app.services.vision import vision_extract, vision_extract_from_images
 from app.services.llm import extract_fields
 from app.services.confidence import score_fields
@@ -23,7 +22,7 @@ class IngestionState(TypedDict, total=False):
     filename: str
     mime: str
     kind: Literal["pdf", "docx"]
-    route: Literal["text", "ocr", "vision"]
+    route: Literal["text", "vision"]
     stats: ExtractionStats
     text: str
     raw_fields: dict
@@ -56,24 +55,8 @@ async def n_detect(state: IngestionState) -> IngestionState:
     return {**state, "kind": kind, "stats": stats, "route": route, "text": stats.text}
 
 
-async def n_ocr(state: IngestionState) -> IngestionState:
-    """Fallback: run Tesseract OCR on the PDF and escalate to vision if junk."""
-    if state.get("route") != "ocr":
-        log.info("graph[ocr] skipped (route=%s)", state.get("route"))
-        return state
-    if state.get("kind") != "pdf":
-        log.info("graph[ocr] skipped (kind=%s not pdf)", state.get("kind"))
-        return state
-    result = ocr_pdf(state["file_bytes"])
-    log.info("graph[ocr] text_chars=%d junk=%s", len(result.text), result.junk)
-    if result.junk:
-        log.info("graph[ocr] escalating to vision")
-        return {**state, "route": "vision", "text": result.text}
-    return {**state, "text": result.text}
-
-
 async def n_vision(state: IngestionState) -> IngestionState:
-    """Fallback: send rasterised PDF pages or embedded DOCX images to the vision model."""
+    """Fallback lane: send rasterised PDF pages or embedded DOCX images to the vision model."""
     if state.get("route") != "vision":
         log.info("graph[vision] skipped (route=%s)", state.get("route"))
         return state
@@ -126,13 +109,11 @@ def build_graph():
     """Compile and return the LangGraph ingestion workflow."""
     g = StateGraph(IngestionState)
     g.add_node("detect", n_detect)
-    g.add_node("ocr", n_ocr)
     g.add_node("vision", n_vision)
     g.add_node("llm", n_llm)
     g.add_node("score", n_score)
     g.set_entry_point("detect")
-    g.add_edge("detect", "ocr")
-    g.add_edge("ocr", "vision")
+    g.add_edge("detect", "vision")
     g.add_edge("vision", "llm")
     g.add_edge("llm", "score")
     g.add_edge("score", END)

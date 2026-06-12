@@ -7,7 +7,7 @@ import fitz  # pymupdf
 from docx import Document as DocxDocument
 
 
-Route = Literal["text", "ocr", "vision"]
+Route = Literal["text", "vision"]
 
 MIN_CHARS_PER_PAGE = 80
 IMAGE_AREA_RATIO_TRIGGER = 0.55
@@ -90,9 +90,9 @@ def extract_docx(data: bytes) -> ExtractionStats:
 
 
 def route_decision(stats: ExtractionStats) -> Route:
-    """Decide which extraction path to use based on heuristics."""
+    """Decide which extraction path to use based on heuristics; OCR was removed in favour of vision."""
     if stats.chars_per_page < MIN_CHARS_PER_PAGE:
-        return "ocr"
+        return "vision"
     if stats.image_area_ratio >= IMAGE_AREA_RATIO_TRIGGER:
         return "vision"
     return "text"

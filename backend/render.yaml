@@ -26,10 +26,12 @@ services:
         sync: false
       - key: GEMINI_VISION_MODEL
         value: gemini-2.5-flash
-      - key: RESEND_API_KEY
+      - key: BREVO_API_KEY
         sync: false
-      - key: RESEND_FROM
-        value: onboarding@resend.dev
+      - key: BREVO_FROM_EMAIL
+        sync: false
+      - key: BREVO_FROM_NAME
+        value: HR Team
       - key: MAX_UPLOAD_MB
         value: 10
       - key: CORS_ORIGINS
