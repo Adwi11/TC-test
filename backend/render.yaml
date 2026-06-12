@@ -20,6 +20,12 @@ services:
         value: gpt-oss:120b-cloud
       - key: VISION_MODEL
         value: qwen3-vl:235b-cloud
+      - key: VISION_PROVIDER
+        value: ollama
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_VISION_MODEL
+        value: gemini-2.5-flash
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM

@@ -9,8 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.models import Candidate, DocumentRequest
 from app.services.confidence import EMAIL_RE
-from app.services.llm import chat
+from app.services.email_verify import verify_email as verify_email_http
+from app.services.llm import chat, reextract_email
 from app.services.mailer import send_email
+
+
+EMAIL_REEXTRACT_MAX_TRIES = 2
 
 
 log = logging.getLogger(__name__)
@@ -150,6 +154,50 @@ async def run_request_agent(session: AsyncSession, candidate: Candidate) -> Docu
             candidate_id=candidate.id, channel="email",
             recipient=candidate.email, subject=None, body=None,
             status="needs_email", error=reason,
+        )
+        session.add(req)
+        await session.commit()
+        await session.refresh(req)
+        return req
+
+    rejected: list[str] = []
+    final_reason = ""
+    for attempt in range(EMAIL_REEXTRACT_MAX_TRIES + 1):
+        verify = await verify_email_http(candidate.email)
+        log.info(
+            "agent[verify_email] attempt=%d email=%s deliverable=%s mx=%s disposable=%s reason=%s fail_open=%s",
+            attempt, candidate.email, verify.deliverable, verify.mx, verify.disposable, verify.reason, verify.fail_open,
+        )
+        if verify.deliverable:
+            final_reason = ""
+            break
+        final_reason = verify.reason
+        rejected.append(candidate.email)
+        if attempt >= EMAIL_REEXTRACT_MAX_TRIES or not candidate.source_text:
+            break
+        guess = await reextract_email(candidate.source_text, rejected=rejected, reason=verify.reason)
+        new_email = (guess.get("email") or "").strip() or None
+        log.info("agent[reextract_email] attempt=%d candidate=%s new=%s confidence=%.2f",
+                 attempt, candidate.email, new_email, float(guess.get("confidence") or 0.0))
+        if not new_email or new_email in rejected or not EMAIL_RE.match(new_email):
+            break
+        candidate.email = new_email
+        fc = dict(candidate.field_confidence_json or {})
+        fc["email"] = {
+            "score": round(float(guess.get("confidence") or 0.0), 3),
+            "source": "reextract",
+            "validated": True,
+        }
+        candidate.field_confidence_json = fc
+        await session.commit()
+        await session.refresh(candidate)
+
+    if final_reason:
+        req = DocumentRequest(
+            candidate_id=candidate.id, channel="email",
+            recipient=candidate.email, subject=None, body=None,
+            status="needs_email",
+            error=f"http verify failed after retries; tried={rejected}; last reason={final_reason}",
         )
         session.add(req)
         await session.commit()

@@ -91,3 +91,43 @@ async def extract_fields(text: str) -> dict:
             "designation": None, "skills": [],
             "confidence": {k: 0.0 for k in ("name", "email", "phone", "company", "designation", "skills")},
         }
+
+
+REEXTRACT_EMAIL_SYSTEM = (
+    "You are re-reading raw resume text to find the candidate's correct email address. "
+    "A previous attempt produced an email that failed validation, so look harder.\n\n"
+    "Rules:\n"
+    "- Scan the entire text including headers, footers, contact lines, and any URL-like tokens.\n"
+    "- Normalise obfuscated forms: 'asha [at] gmail [dot] com' -> 'asha@gmail.com'; "
+    "  collapse whitespace; strip surrounding punctuation.\n"
+    "- Reject the previously rejected addresses. Pick the next-most-likely real candidate email.\n"
+    "- Prefer addresses that look personal (real names, common providers) over generic or "
+    "  template placeholders (e.g. 'example.com', 'yourname@', 'firstname.lastname@company').\n"
+    "- If you cannot find any plausible email, return {\"email\": null, \"confidence\": 0}.\n"
+    "- Return ONLY a JSON object: {\"email\": string|null, \"confidence\": number 0..1}."
+)
+
+
+async def reextract_email(text: str, *, rejected: list[str], reason: str) -> dict:
+    """Re-scan the source text for a better email after the previous one failed verification."""
+    trimmed = text[:18000]
+    user = (
+        f"Resume text:\n{trimmed}\n\n"
+        f"Previously rejected emails: {rejected}\n"
+        f"Rejection reason: {reason}\n\n"
+        "Find a different, valid email address from the resume."
+    )
+    resp = await chat(
+        [
+            {"role": "system", "content": REEXTRACT_EMAIL_SYSTEM},
+            {"role": "user", "content": user},
+        ],
+        format_json=True,
+    )
+    content = resp.get("message", {}).get("content", "") or ""
+    try:
+        data = json.loads(_strip_json(content))
+        return {"email": data.get("email"), "confidence": float(data.get("confidence") or 0.0)}
+    except Exception as e:
+        log.warning("reextract json parse failed: %s; raw=%r", e, content[:300])
+        return {"email": None, "confidence": 0.0}

@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     agent_model: str = "gpt-oss:120b-cloud"
     vision_model: str = "qwen3-vl:235b-cloud"
 
+    vision_provider: str = "ollama"
+    gemini_api_key: str = ""
+    gemini_vision_model: str = "gemini-2.5-flash"
+
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/resume_agent"
 
     smtp_host: str = "smtp.gmail.com"
